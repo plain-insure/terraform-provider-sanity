@@ -1,0 +1,39 @@
+---
+page_title: "Sanity Terraform Provider"
+description: |-
+  A Terraform provider for Sanity that allows teams to configure and update CMS resources.
+---
+
+# Sanity Terraform Provider
+
+The Sanity Terraform Provider allows you to configure and update CMS resources for [Sanity](https://www.sanity.io/).
+
+## Setup
+
+### Authentication
+
+The provider requires an authentication token used to communicate with Sanity APIs. You can use a token created as part of a project, or you can use the auth token created when you sign in to the Sanity CLI. To get your auth token you can run `sanity debug --secrets` at a command prompt.
+
+```terraform
+provider "sanity" {
+  token = var.sanity_auth_token
+}
+```
+
+However, it is best to not store the token in plain text. Instead, you can set an environment variable `SANITY_TOKEN` with the auth token, and then you can omit the `token` from the provider block:
+
+```terraform
+provider "sanity" {}
+```
+
+## Example Usage
+
+{{tffile "examples/provider/provider.tf"}}
+
+{{.SchemaMarkdown}}
+
+## Typical Usage
+
+Below is a full example showcasing typical usage:
+
+{{tffile "examples/kitchen-sink/demo.tf"}}
