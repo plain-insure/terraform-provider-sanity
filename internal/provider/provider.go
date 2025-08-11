@@ -97,6 +97,7 @@ func (p *SanityProvider) Resources(ctx context.Context) []func() resource.Resour
 		NewCORSOriginResource,
 		NewDatasetResource,
 		NewProjectTokenResource,
+		NewWebhookResource,
 	}
 }
 
