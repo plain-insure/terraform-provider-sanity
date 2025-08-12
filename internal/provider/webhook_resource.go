@@ -26,22 +26,32 @@ type WebhookResource struct {
 	client *sanity.Client
 }
 
+// WebhookRuleModel describes the webhook rule data model.
+type WebhookRuleModel struct {
+	On         []types.String `tfsdk:"on"`
+	Filter     types.String   `tfsdk:"filter"`
+	Projection types.String   `tfsdk:"projection"`
+}
+
 // WebhookResourceModel describes the resource data model.
 type WebhookResourceModel struct {
-	Id             types.String            `tfsdk:"id"`
-	ProjectId      types.String            `tfsdk:"project_id"`
-	Name           types.String            `tfsdk:"name"`
-	Dataset        types.String            `tfsdk:"dataset"`
-	URL            types.String            `tfsdk:"url"`
-	HttpMethod     types.String            `tfsdk:"http_method"`
-	ApiVersion     types.String            `tfsdk:"api_version"`
-	IncludeDrafts  types.Bool              `tfsdk:"include_drafts"`
-	Headers        map[string]types.String `tfsdk:"headers"`
-	Filter         types.String            `tfsdk:"filter"`
-	Secret         types.String            `tfsdk:"secret"`
-	IsDisabled     types.Bool              `tfsdk:"is_disabled"`
-	CreatedAt      types.String            `tfsdk:"created_at"`
-	UpdatedAt      types.String            `tfsdk:"updated_at"`
+	Id               types.String            `tfsdk:"id"`
+	ProjectId        types.String            `tfsdk:"project_id"`
+	Type             types.String            `tfsdk:"type"`
+	Name             types.String            `tfsdk:"name"`
+	Dataset          types.String            `tfsdk:"dataset"`
+	URL              types.String            `tfsdk:"url"`
+	Description      types.String            `tfsdk:"description"`
+	HttpMethod       types.String            `tfsdk:"http_method"`
+	ApiVersion       types.String            `tfsdk:"api_version"`
+	IncludeDrafts    types.Bool              `tfsdk:"include_drafts"`
+	Headers          map[string]types.String `tfsdk:"headers"`
+	Rule             *WebhookRuleModel       `tfsdk:"rule"`
+	Secret           types.String            `tfsdk:"secret"`
+	IsDisabledByUser types.Bool              `tfsdk:"is_disabled_by_user"`
+	IsDisabled       types.Bool              `tfsdk:"is_disabled"`
+	CreatedAt        types.String            `tfsdk:"created_at"`
+	UpdatedAt        types.String            `tfsdk:"updated_at"`
 }
 
 func (r *WebhookResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -69,6 +79,14 @@ func (r *WebhookResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Dia
 					resource.RequiresReplace(),
 				},
 			},
+			"type": {
+				MarkdownDescription: "The type of webhook. Can be 'document' or 'transaction'.",
+				Required:            true,
+				Type:                types.StringType,
+				PlanModifiers: tfsdk.AttributePlanModifiers{
+					resource.RequiresReplace(),
+				},
+			},
 			"name": {
 				MarkdownDescription: "The human-readable name for the webhook.",
 				Required:            true,
@@ -87,8 +105,13 @@ func (r *WebhookResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Dia
 				Required:            true,
 				Type:                types.StringType,
 			},
+			"description": {
+				MarkdownDescription: "A description of the webhook.",
+				Optional:            true,
+				Type:                types.StringType,
+			},
 			"http_method": {
-				MarkdownDescription: "The HTTP method used for webhook requests. Defaults to `POST`.",
+				MarkdownDescription: "The HTTP method used for webhook requests. Defaults to `POST`. Only available for document webhooks.",
 				Optional:            true,
 				Computed:            true,
 				Type:                types.StringType,
@@ -97,7 +120,7 @@ func (r *WebhookResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Dia
 				},
 			},
 			"api_version": {
-				MarkdownDescription: "The API version used for webhook payloads. Defaults to the current API version.",
+				MarkdownDescription: "The API version used for webhook payloads. Defaults to the current API version. Only available for document webhooks.",
 				Optional:            true,
 				Computed:            true,
 				Type:                types.StringType,
@@ -106,7 +129,7 @@ func (r *WebhookResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Dia
 				},
 			},
 			"include_drafts": {
-				MarkdownDescription: "Whether draft documents trigger webhook notifications. Defaults to `false`.",
+				MarkdownDescription: "Whether draft documents trigger webhook notifications. Defaults to `false`. Only available for document webhooks.",
 				Optional:            true,
 				Computed:            true,
 				Type:                types.BoolType,
@@ -115,31 +138,54 @@ func (r *WebhookResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Dia
 				},
 			},
 			"headers": {
-				MarkdownDescription: "Custom HTTP headers sent with webhook requests.",
+				MarkdownDescription: "Custom HTTP headers sent with webhook requests. Only available for document webhooks.",
 				Optional:            true,
 				Type: types.MapType{
 					ElemType: types.StringType,
 				},
 			},
-			"filter": {
-				MarkdownDescription: "A GROQ filter expression to determine which documents trigger the webhook.",
+			"rule": {
+				MarkdownDescription: "The rule configuration for the webhook. Only available for document webhooks.",
 				Optional:            true,
-				Type:                types.StringType,
+				Attributes: tfsdk.SingleNestedAttributes(map[string]tfsdk.Attribute{
+					"on": {
+						MarkdownDescription: "The events that trigger the webhook. Can be 'create', 'update', or 'delete'.",
+						Required:            true,
+						Type: types.ListType{
+							ElemType: types.StringType,
+						},
+					},
+					"filter": {
+						MarkdownDescription: "A GROQ filter expression to determine which documents trigger the webhook.",
+						Optional:            true,
+						Type:                types.StringType,
+					},
+					"projection": {
+						MarkdownDescription: "A GROQ projection to determine what data to include in the webhook payload.",
+						Optional:            true,
+						Type:                types.StringType,
+					},
+				}),
 			},
 			"secret": {
-				MarkdownDescription: "Secret used for webhook signature verification.",
+				MarkdownDescription: "Secret used for webhook signature verification. Only available for document webhooks.",
 				Optional:            true,
 				Sensitive:           true,
 				Type:                types.StringType,
 			},
-			"is_disabled": {
-				MarkdownDescription: "Whether the webhook is currently disabled. Defaults to `false`.",
+			"is_disabled_by_user": {
+				MarkdownDescription: "Whether the webhook is disabled by the user. Defaults to `false`.",
 				Optional:            true,
 				Computed:            true,
 				Type:                types.BoolType,
 				PlanModifiers: tfsdk.AttributePlanModifiers{
 					attribute_plan_modifier.DefaultValue(types.Bool{Value: false}),
 				},
+			},
+			"is_disabled": {
+				MarkdownDescription: "Whether the webhook is currently disabled (read-only).",
+				Computed:            true,
+				Type:                types.BoolType,
 			},
 			"created_at": {
 				Computed:            true,
@@ -187,6 +233,19 @@ func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
+	// Validate webhook type restrictions
+	if data.Type.Value == "transaction" {
+		// For transaction webhooks, only certain fields are allowed
+		if !data.HttpMethod.Null || !data.ApiVersion.Null || !data.IncludeDrafts.Null ||
+			len(data.Headers) > 0 || data.Rule != nil || !data.Secret.Null {
+			resp.Diagnostics.AddError(
+				"Invalid Configuration",
+				"For transaction webhooks, only type, name, url, dataset, description, and is_disabled_by_user can be set.",
+			)
+			return
+		}
+	}
+
 	// Convert headers map from Terraform types to Go strings
 	headers := make(map[string]string)
 	for k, v := range data.Headers {
@@ -194,6 +253,7 @@ func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	createReq := &sanity.CreateWebhookRequest{
+		Type:    data.Type.Value,
 		Name:    data.Name.Value,
 		Dataset: data.Dataset.Value,
 		URL:     data.URL.Value,
@@ -211,11 +271,28 @@ func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest
 	if len(headers) > 0 {
 		createReq.Headers = headers
 	}
-	if !data.Filter.Null {
-		createReq.Filter = data.Filter.Value
+	if data.Rule != nil {
+		rule := &sanity.WebhookRule{}
+
+		// Convert On array
+		for _, on := range data.Rule.On {
+			rule.On = append(rule.On, on.Value)
+		}
+
+		if !data.Rule.Filter.Null {
+			rule.Filter = data.Rule.Filter.Value
+		}
+		if !data.Rule.Projection.Null {
+			rule.Projection = data.Rule.Projection.Value
+		}
+
+		createReq.Rule = rule
 	}
 	if !data.Secret.Null {
 		createReq.Secret = data.Secret.Value
+	}
+	if !data.IsDisabledByUser.Null {
+		createReq.IsDisabledByUser = sanity.NewBool(data.IsDisabledByUser.Value)
 	}
 
 	webhook, err := r.client.Webhooks.Create(ctx, data.ProjectId.Value, createReq)
@@ -271,9 +348,26 @@ func (r *WebhookResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
+	// Validate webhook type restrictions
+	if data.Type.Value == "transaction" {
+		// For transaction webhooks, only certain fields are allowed
+		if !data.HttpMethod.Null || !data.ApiVersion.Null || !data.IncludeDrafts.Null ||
+			len(data.Headers) > 0 || data.Rule != nil || !data.Secret.Null {
+			resp.Diagnostics.AddError(
+				"Invalid Configuration",
+				"For transaction webhooks, only type, name, url, dataset, description, and is_disabled_by_user can be set.",
+			)
+			return
+		}
+	}
+
 	updateReq := &sanity.UpdateWebhookRequest{}
 	requiresUpdate := false
 
+	if !data.Type.Null {
+		updateReq.Type = data.Type.Value
+		requiresUpdate = true
+	}
 	if !data.Name.Null {
 		updateReq.Name = data.Name.Value
 		requiresUpdate = true
@@ -302,16 +396,30 @@ func (r *WebhookResource) Update(ctx context.Context, req resource.UpdateRequest
 		updateReq.Headers = headers
 		requiresUpdate = true
 	}
-	if !data.Filter.Null {
-		updateReq.Filter = data.Filter.Value
+	if data.Rule != nil {
+		rule := &sanity.WebhookRule{}
+
+		// Convert On array
+		for _, on := range data.Rule.On {
+			rule.On = append(rule.On, on.Value)
+		}
+
+		if !data.Rule.Filter.Null {
+			rule.Filter = data.Rule.Filter.Value
+		}
+		if !data.Rule.Projection.Null {
+			rule.Projection = data.Rule.Projection.Value
+		}
+
+		updateReq.Rule = rule
 		requiresUpdate = true
 	}
 	if !data.Secret.Null {
 		updateReq.Secret = data.Secret.Value
 		requiresUpdate = true
 	}
-	if !data.IsDisabled.Null {
-		updateReq.IsDisabled = sanity.NewBool(data.IsDisabled.Value)
+	if !data.IsDisabledByUser.Null {
+		updateReq.IsDisabledByUser = sanity.NewBool(data.IsDisabledByUser.Value)
 		requiresUpdate = true
 	}
 
@@ -370,13 +478,13 @@ func (r *WebhookResource) ImportState(ctx context.Context, req resource.ImportSt
 func (r *WebhookResource) updateModelFromWebhook(data *WebhookResourceModel, webhook *sanity.Webhook) {
 	data.Id = types.String{Value: webhook.Id}
 	data.ProjectId = types.String{Value: webhook.ProjectId}
+	data.Type = types.String{Value: webhook.Type}
 	data.Name = types.String{Value: webhook.Name}
 	data.Dataset = types.String{Value: webhook.Dataset}
 	data.URL = types.String{Value: webhook.URL}
 	data.HttpMethod = types.String{Value: webhook.HttpMethod}
 	data.ApiVersion = types.String{Value: webhook.ApiVersion}
 	data.IncludeDrafts = types.Bool{Value: webhook.IncludeDrafts}
-	data.Filter = types.String{Value: webhook.Filter}
 	data.IsDisabled = types.Bool{Value: webhook.IsDisabled}
 	data.CreatedAt = types.String{Value: webhook.CreatedAt.Format("2006-01-02T15:04:05Z")}
 	data.UpdatedAt = types.String{Value: webhook.UpdatedAt.Format("2006-01-02T15:04:05Z")}
@@ -389,6 +497,22 @@ func (r *WebhookResource) updateModelFromWebhook(data *WebhookResourceModel, web
 		for k, v := range webhook.Headers {
 			data.Headers[k] = types.String{Value: v}
 		}
+	}
+
+	// Convert rule structure
+	if webhook.Rule != nil {
+		if data.Rule == nil {
+			data.Rule = &WebhookRuleModel{}
+		}
+
+		// Convert On array
+		data.Rule.On = make([]types.String, len(webhook.Rule.On))
+		for i, on := range webhook.Rule.On {
+			data.Rule.On[i] = types.String{Value: on}
+		}
+
+		data.Rule.Filter = types.String{Value: webhook.Rule.Filter}
+		data.Rule.Projection = types.String{Value: webhook.Rule.Projection}
 	}
 
 	// Preserve the secret from state since it's not returned by the API
