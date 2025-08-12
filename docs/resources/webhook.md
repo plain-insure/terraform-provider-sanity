@@ -15,6 +15,7 @@ Provides a Sanity webhook. Webhooks allow you to get notified when content is cr
 ```terraform
 resource "sanity_webhook" "example" {
   project_id      = sanity_project.example.id
+  name            = "Content Updates Webhook"
   dataset         = "production"
   url             = "https://api.example.com/webhooks/sanity"
   http_method     = "POST"
@@ -36,6 +37,7 @@ resource "sanity_webhook" "example" {
 ### Required
 
 - `dataset` (String) The dataset this webhook is configured for.
+- `name` (String) The human-readable name for the webhook.
 - `project_id` (String) The project ID that this webhook belongs to.
 - `url` (String) The endpoint URL that will receive webhook notifications.
 

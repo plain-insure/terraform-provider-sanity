@@ -1,5 +1,6 @@
 resource "sanity_webhook" "example" {
   project_id      = sanity_project.example.id
+  name            = "Content Updates Webhook"
   dataset         = "production"
   url             = "https://api.example.com/webhooks/sanity"
   http_method     = "POST"

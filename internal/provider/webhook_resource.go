@@ -30,6 +30,7 @@ type WebhookResource struct {
 type WebhookResourceModel struct {
 	Id             types.String            `tfsdk:"id"`
 	ProjectId      types.String            `tfsdk:"project_id"`
+	Name           types.String            `tfsdk:"name"`
 	Dataset        types.String            `tfsdk:"dataset"`
 	URL            types.String            `tfsdk:"url"`
 	HttpMethod     types.String            `tfsdk:"http_method"`
@@ -67,6 +68,11 @@ func (r *WebhookResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Dia
 				PlanModifiers: tfsdk.AttributePlanModifiers{
 					resource.RequiresReplace(),
 				},
+			},
+			"name": {
+				MarkdownDescription: "The human-readable name for the webhook.",
+				Required:            true,
+				Type:                types.StringType,
 			},
 			"dataset": {
 				MarkdownDescription: "The dataset this webhook is configured for.",
@@ -188,6 +194,7 @@ func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	createReq := &sanity.CreateWebhookRequest{
+		Name:    data.Name.Value,
 		Dataset: data.Dataset.Value,
 		URL:     data.URL.Value,
 	}
@@ -267,6 +274,10 @@ func (r *WebhookResource) Update(ctx context.Context, req resource.UpdateRequest
 	updateReq := &sanity.UpdateWebhookRequest{}
 	requiresUpdate := false
 
+	if !data.Name.Null {
+		updateReq.Name = data.Name.Value
+		requiresUpdate = true
+	}
 	if !data.URL.Null {
 		updateReq.URL = data.URL.Value
 		requiresUpdate = true
@@ -359,6 +370,7 @@ func (r *WebhookResource) ImportState(ctx context.Context, req resource.ImportSt
 func (r *WebhookResource) updateModelFromWebhook(data *WebhookResourceModel, webhook *sanity.Webhook) {
 	data.Id = types.String{Value: webhook.Id}
 	data.ProjectId = types.String{Value: webhook.ProjectId}
+	data.Name = types.String{Value: webhook.Name}
 	data.Dataset = types.String{Value: webhook.Dataset}
 	data.URL = types.String{Value: webhook.URL}
 	data.HttpMethod = types.String{Value: webhook.HttpMethod}
