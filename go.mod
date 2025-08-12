@@ -61,4 +61,4 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 )
 
-replace github.com/tessellator/go-sanity => github.com/plain-insure/go-sanity v0.3.2
+replace github.com/tessellator/go-sanity => github.com/plain-insure/go-sanity v0.3.3
