@@ -29,7 +29,6 @@ resource "sanity_webhook" "transaction_example" {
   name                = "Transaction Webhook"
   dataset             = "production"
   url                 = "https://api.example.com/webhooks/sanity-transactions"
-  description         = "Webhook for transaction events"
   is_disabled_by_user = false
 }
 

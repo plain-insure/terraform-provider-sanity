@@ -41,7 +41,6 @@ type WebhookResourceModel struct {
 	Name             types.String            `tfsdk:"name"`
 	Dataset          types.String            `tfsdk:"dataset"`
 	URL              types.String            `tfsdk:"url"`
-	Description      types.String            `tfsdk:"description"`
 	HttpMethod       types.String            `tfsdk:"http_method"`
 	ApiVersion       types.String            `tfsdk:"api_version"`
 	IncludeDrafts    types.Bool              `tfsdk:"include_drafts"`
@@ -103,11 +102,6 @@ func (r *WebhookResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Dia
 			"url": {
 				MarkdownDescription: "The endpoint URL that will receive webhook notifications.",
 				Required:            true,
-				Type:                types.StringType,
-			},
-			"description": {
-				MarkdownDescription: "A description of the webhook.",
-				Optional:            true,
 				Type:                types.StringType,
 			},
 			"http_method": {
@@ -240,7 +234,7 @@ func (r *WebhookResource) Create(ctx context.Context, req resource.CreateRequest
 			len(data.Headers) > 0 || data.Rule != nil || !data.Secret.Null {
 			resp.Diagnostics.AddError(
 				"Invalid Configuration",
-				"For transaction webhooks, only type, name, url, dataset, description, and is_disabled_by_user can be set.",
+				"For transaction webhooks, only type, name, url, dataset, and is_disabled_by_user can be set.",
 			)
 			return
 		}
@@ -355,7 +349,7 @@ func (r *WebhookResource) Update(ctx context.Context, req resource.UpdateRequest
 			len(data.Headers) > 0 || data.Rule != nil || !data.Secret.Null {
 			resp.Diagnostics.AddError(
 				"Invalid Configuration",
-				"For transaction webhooks, only type, name, url, dataset, description, and is_disabled_by_user can be set.",
+				"For transaction webhooks, only type, name, url, dataset, and is_disabled_by_user can be set.",
 			)
 			return
 		}
@@ -511,8 +505,19 @@ func (r *WebhookResource) updateModelFromWebhook(data *WebhookResourceModel, web
 			data.Rule.On[i] = types.String{Value: on}
 		}
 
-		data.Rule.Filter = types.String{Value: webhook.Rule.Filter}
-		data.Rule.Projection = types.String{Value: webhook.Rule.Projection}
+		// For optional fields, only set them if they have a value from the API
+		// This prevents changing null to empty string
+		if webhook.Rule.Filter != "" {
+			data.Rule.Filter = types.String{Value: webhook.Rule.Filter}
+		} else {
+			data.Rule.Filter = types.String{Null: true}
+		}
+
+		if webhook.Rule.Projection != "" {
+			data.Rule.Projection = types.String{Value: webhook.Rule.Projection}
+		} else {
+			data.Rule.Projection = types.String{Null: true}
+		}
 	}
 
 	// Preserve the secret from state since it's not returned by the API
